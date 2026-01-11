@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Interview Chatbot</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body.chat-mode {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #f0f2f5;
+        }
+
+        #chat-container {
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .message {
+            padding: 0.6rem 1rem;
+            border-radius: 1rem;
+            max-width: 80%;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .bot {
+            background: #e4e6eb;
+            color: #050505;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.2rem;
+        }
+
+        .user {
+            background: #0084ff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.2rem;
+        }
+
+        .ai-suggestion {
+            background: #f3e5f5;
+            color: #050505;
+            align-self: flex-end;
+            border-bottom-left-radius: 0.2rem;
+            border: 1px solid #e1bee7;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+        }
+
+        button {
+            padding: 0.8rem 2rem;
+            border-radius: 2rem;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        #record-btn {
+            /* background: #ef9a9a; */
+            background: #f65d5d;
+            color: white;
+            box-shadow: 0 2px 5px rgba(255, 59, 48, 0.3);
+        }
+
+        #record-btn:active {
+            transform: scale(0.95);
+        }
+
+        #record-btn.recording {
+            background: #ff3b30;
+            animation: pulse 1.5s infinite;
+        }
+
+        button:disabled {
+            background: #ccc !important;
+            cursor: not-allowed;
+            box-shadow: none !important;
+        }
+
+        .replay-btn {
+            margin-left: 0.5rem;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.8rem;
+            background: #ddd;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+
+        #status {
+            font-size: 0.8rem;
+            color: #65676b;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .form-label,
+        #btn_interview_preference {
+            font-weight: bold;
+            font-size: 0.6em;
+            margin-top: 6px;
+
+        }
+
+        .form-text,
+        .form-check-label
+
+        /*, .form-check-input { */
+            {
+            font-size: 0.5em;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .message-actions {
+            align-self: flex-end;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .message-actions button {
+            padding: 0.2rem 0.6rem;
+            font-size: 0.75rem;
+            border-radius: 1rem;
+            background-color: #f0f2f5;
+            border: 1px solid #ddd;
+            color: #555;
+        }
+
+        .message-actions button:hover {
+            background-color: #e4e6eb;
+        }
+
+        .correct {
+            font-size: 110%;
+            font-weight: bold;
+            color: #ff3b30;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <!-- Setup Interface -->
+    <div id="setup-container" class="container py-5" style="max-width: 600px;">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="text-center mb-4">Interview Setup<h2>
+                        <form id="setup-form">
+                            <!-- 1. Name -->
+                            <div class="mb-3">
+                                <label for="userName" class="form-label">Your Name</label>
+                                <input type="text" class="form-control" id="userName" required>
+                            </div>
+
+                            <!-- 2. Position -->
+                            <div class="mb-3">
+                                <label for="userPosition" class="form-label">Position</label>
+                                <input type="text" class="form-control" id="userPosition"
+                                    value="Machine Learning Engineer">
+                            </div>
+                            <!-- 3. Years of experimence -->
+                            <div class="mb-3">
+                                <label for="yearsOfExperience" class="form-label">Years of Experience (Y)</label>
+                                <input type="number" min="0" max="40" step="0.1" class="form-control"
+                                    id="yearsOfExperience" value="5">
+                            </div>
+
+                            <!-- 4. Interview Type -->
+                            <div class="mb-3">
+                                <label class="form-label d-block">Interview Type</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="interviewType" id="typeTechnical"
+                                        value="Technical" autocomplete="off" checked>
+                                    <label class="btn btn-outline-primary" for="typeTechnical">
+                                        <i class="bi bi-code-slash me-2"></i>Technical
+                                    </label>
+                                    <input type="radio" class="btn-check" name="interviewType" id="typeBehavioral"
+                                        value="Behavioral" autocomplete="off">
+                                    <label class="btn btn-outline-primary" for="typeBehavioral">
+                                        <i class="bi bi-chat-quote-fill me-2"></i>Behavioral
+                                    </label>
+
+
+                                </div>
+                            </div>
+
+                            <!-- 5. OpenAI API Key -->
+                            <div class="mb-3">
+                                <label for="apiKey" class="form-label">OpenAI API Key</label>
+                                <input type="password" class="form-control" id="apiKey" placeholder="sk-...">
+                                <div class="form-text">Set up API Key to use OpenAI's ChatGPT, TTS, STT function.</div>
+                            </div>
+
+                            <!-- 6. Upload CV -->
+                            <div class="mb-3">
+                                <label for="cvUpload" class="form-label">Upload CV (Optional)</label>
+                                <input class="form-control" type="file" id="cvUpload" accept=".pdf">
+                            </div>
+
+                            <!-- 7. Interview Preference -->
+                            <div class="mb-3">
+                                <button class="btn btn-link p-0 text-decoration-none" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#preferenceCollapse"
+                                    id="btn_interview_preference">
+                                    <i class="bi bi-gear-fill me-1"></i> Interview Preference
+                                </button>
+                                <div class="collapse mt-2 show" id="preferenceCollapse">
+                                    <div class="card card-body bg-light border-0">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="enableVoice" checked>
+                                            <label class="form-check-label" for="enableVoice">
+                                                Enable Interviewers' Voice <small class="text-muted">(Enable voice cause
+                                                    additional cost)</small>
+                                            </label>
+                                        </div>
+                                        <!-- deprecated -->
+                                        <!-- <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableAdvice" checked>
+                                            <label class="form-check-label" for="enableAdvice">
+                                                Enable Answer Advice <small class="text-muted">(Enable a coach that
+                                                    generates
+                                                    modified answers)</small>
+                                            </label>
+                                        </div> -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg">Start Interview</button>
+                            </div>
+                        </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Interface (Initially Hidden) -->
+    <div id="chat-interface" class="d-none">
+        <h2 style="text-align: center; color: #333;" class="mt-4">Mock Interview</h2>
+        <div id="chat-container"></div>
+        <div class="controls">
+            <button id="record-btn">Answer</button>
+        </div>
+        <div class="controls" style="margin-top: 10px;">
+            <button id="end-btn" style="background-color: #6c757d; color: white;">結束會話</button>
+            <button id="save-btn" style="background-color: #198754; color: white;">結束並保存</button>
+        </div>
+        <div id="status">準備就緒</div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const recordBtn = document.getElementById('record-btn');
+        const statusDiv = document.getElementById('status');
+        let sessionId = null;
+        let ws;
+        let mediaRecorder;
+        let audioChunks = [];
+        let currentTranscribingMessage = null;
+
+        // 顯示訊息功能
+        function appendMessage(text, sender, index) {
+            const div = document.createElement('div');
+            div.classList.add('message', sender);
+            if (index !== undefined && index !== null) {
+                div.dataset.index = index;
+            }
+            div.textContent = text;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            if (sender === 'user' && index !== undefined && index !== null) {
+                addMessageControls(div, index);
+            }
+            return div;
+        }
+
+        // 0. 設定表單處理
+        document.getElementById('setup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('userName').value);
+            formData.append('position', document.getElementById('userPosition').value);
+            formData.append('years_of_experience', document.getElementById('yearsOfExperience').value);
+            formData.append('interview_type', document.querySelector('input[name="interviewType"]:checked').value);
+            formData.append('openai_api_key', document.getElementById('apiKey').value);
+            formData.append('enable_voice', document.getElementById('enableVoice').checked);
+            // formData.append('enable_advice', document.getElementById('enableAdvice').checked);
+
+            const cvFile = document.getElementById('cvUpload').files[0];
+            if (cvFile) {
+                formData.append('cv', cvFile);
+            }
+
+            try {
+                const response = await fetch('/setup', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    sessionId = data.session_id;
+
+                    // 切換介面
+                    document.getElementById('setup-container').classList.add('d-none');
+                    document.getElementById('chat-interface').classList.remove('d-none');
+                    document.body.classList.remove('bg-light');
+                    document.body.classList.add('chat-mode');
+                    recordBtn.disabled = true;
+
+                    // 初始化 WebSocket
+                    connectWebSocket();
+                    // appendMessage("你好，很高興認識你", "bot");
+                } else {
+                    alert('Setup failed. Please check your inputs.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during setup.');
+            }
+        });
+
+        // 2. 建立 WebSocket 連線
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws?session_id=${sessionId}`);
+            ws.binaryType = 'arraybuffer'; // 設定接收二進位資料
+
+            ws.onopen = () => {
+                console.log('Connected to WebSocket');
+                statusDiv.textContent = "伺服器已連線";
+            };
+
+            ws.onclose = () => {
+                console.log('Disconnected');
+                statusDiv.textContent = "伺服器連線中斷";
+            };
+
+            ws.onmessage = (event) => {
+                if (typeof event.data === 'string') {
+                    handleTextMessage(event.data);
+                } else {
+                    handleBinaryMessage(event.data);
+                }
+            };
+        }
+
+        function createLoadingMessage(index, type) {
+            const div = document.createElement('div');
+            div.classList.add('message', 'ai-suggestion');
+            div.dataset.relatedIndex = index;
+            div.dataset.type = type;
+            div.innerHTML = `
+                <div class="d-flex align-items-center gap-2">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                    <span class="text-secondary">Generating answer...</span>
+                </div>
+            `;
+
+            const messageDiv = document.querySelector(`.message.user[data-index="${index}"]`);
+            if (messageDiv) {
+                let insertAfterNode = messageDiv;
+                // If the next element is message-actions, insert after that
+                if (messageDiv.nextElementSibling && messageDiv.nextElementSibling.classList.contains('message-actions')) {
+                    insertAfterNode = messageDiv.nextElementSibling;
+                }
+
+                if (insertAfterNode.nextSibling) {
+                    chatContainer.insertBefore(div, insertAfterNode.nextSibling);
+                } else {
+                    chatContainer.appendChild(div);
+                }
+            } else {
+                chatContainer.appendChild(div);
+            }
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addMessageControls(messageDiv, index) {
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'message-actions';
+
+            // Grammar Check Button
+            const grammarBtn = document.createElement('button');
+            grammarBtn.innerHTML = '<i class="bi bi-spellcheck"></i> Correct Grammar';
+            grammarBtn.onclick = () => {
+                const text = messageDiv.textContent;
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    createLoadingMessage(index, "grammar_check");
+                    ws.send(JSON.stringify({
+                        type: "grammar_check",
+                        data: { user: text, index: index }
+                    }));
+                }
+            };
+
+            // AI Answer Button
+            const aiBtn = document.createElement('button');
+            aiBtn.innerHTML = '<i class="bi bi-magic"></i> See AI Answer';
+            aiBtn.onclick = () => {
+                const text = messageDiv.textContent;
+                const botMsg = document.querySelector(`.message.bot[data-index="${index}"]`);
+                const botText = botMsg ? botMsg.textContent : "";
+
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    createLoadingMessage(index, "generate_ai_answer");
+                    ws.send(JSON.stringify({
+                        type: "generate_ai_answer",
+                        data: {
+                            interviewer: botText,
+                            user: text,
+                            index: index,
+                        }
+                    }));
+                }
+            };
+
+            controlsDiv.appendChild(grammarBtn);
+            controlsDiv.appendChild(aiBtn);
+
+            if (messageDiv.nextSibling) {
+                chatContainer.insertBefore(controlsDiv, messageDiv.nextSibling);
+            } else {
+                chatContainer.appendChild(controlsDiv);
+            }
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function createTranscribingMessage() {
+            const div = document.createElement('div');
+            div.classList.add('message', 'user');
+            div.innerHTML = `
+                <div class="d-flex align-items-center gap-2">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span>Converting to text...</span>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return div;
+        }
+
+        function handleTextMessage(text) {
+            if (text === "START_AUDIO") {
+                initAudioStream();
+                return;
+            }
+            if (text === "END_AUDIO") {
+                finalizeAudioStream();
+                return;
+            }
+
+            try {
+                const data = JSON.parse(text);
+                if (data.type === "user") {
+                    if (currentTranscribingMessage) {
+                        currentTranscribingMessage.textContent = data.content;
+                        currentTranscribingMessage.dataset.index = data.index;
+                        addMessageControls(currentTranscribingMessage, data.index);
+                        currentTranscribingMessage = null;
+                    } else {
+                        appendMessage(data.content, "user", data.index);
+                    }
+                } else if (data.type === "interviewer") {
+                    appendMessage(data.content, "bot", data.index);
+                    recordBtn.disabled = false;
+                } else if (data.type === "grammar_check" || data.type === "generate_ai_answer") {
+                    const loadingMsg = document.querySelector(`.message.ai-suggestion[data-related-index="${data.index}"][data-type="${data.type}"]`);
+                    if (loadingMsg) {
+                        loadingMsg.innerHTML = data.content;
+                        loadingMsg.removeAttribute('data-type');
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing message:", e);
+            }
+        }
+
+        function handleBinaryMessage(data) {
+            // 1. 存起來供重播使用
+            receivedAudioChunks.push(data);
+
+            // 2. 串流播放邏輯
+            if (sourceBuffer && !sourceBuffer.error) {
+                audioQueue.push(data);
+                processQueue();
+            }
+        }
+
+        // 初始化 MediaSource 進行串流播放
+        function initAudioStream() {
+            receivedAudioChunks = [];
+            audioQueue = [];
+            isUpdating = false;
+
+            const audio = new Audio();
+            mediaSource = new MediaSource();
+            audio.src = URL.createObjectURL(mediaSource);
+            audio.play().catch(e => console.log("Autoplay prevented:", e));
+
+            mediaSource.addEventListener('sourceopen', () => {
+                // 建立 SourceBuffer，設定為 MP3 格式
+                sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+                sourceBuffer.addEventListener('updateend', () => {
+                    isUpdating = false;
+                    processQueue();
+                });
+            });
+        }
+
+        // 處理音訊佇列 (避免 SourceBuffer 忙碌時寫入)
+        function processQueue() {
+            if (audioQueue.length > 0 && !isUpdating && sourceBuffer && !sourceBuffer.updating) {
+                try {
+                    const chunk = audioQueue.shift();
+                    sourceBuffer.appendBuffer(chunk);
+                    isUpdating = true;
+                } catch (e) {
+                    console.error("SourceBuffer error:", e);
+                }
+            }
+        }
+
+        // 結束串流並新增重播按鈕
+        function finalizeAudioStream() {
+            if (mediaSource && mediaSource.readyState === 'open') {
+                mediaSource.endOfStream();
+            }
+
+            // 建立完整的 Blob 供重播
+            const fullBlob = new Blob(receivedAudioChunks, { type: 'audio/mpeg' });
+            const audioUrl = URL.createObjectURL(fullBlob);
+
+            // 找到最後一個機器人訊息，加上播放按鈕
+            const messages = document.querySelectorAll('.message.bot');
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg) {
+                const btn = document.createElement('button');
+                btn.textContent = "🔊 Replay audio";
+                btn.className = "replay-btn";
+                btn.onclick = () => {
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                };
+                lastMsg.appendChild(btn);
+            }
+        }
+
+        // 3. 設定錄音功能
+        async function setupRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                statusDiv.textContent = "準備就緒";
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    if (!sessionId) {
+                        audioChunks = [];
+                        return;
+                    }
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => {
+                        const base64data = reader.result.split(',')[1];
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: "audio", data: base64data }));
+                            currentTranscribingMessage = createTranscribingMessage();
+                        } else {
+                            alert("伺服器未連線，無法傳送");
+                        }
+                    };
+                    audioChunks = [];
+                };
+            } catch (err) {
+                console.error("Microphone access denied:", err);
+                statusDiv.textContent = "錯誤：無法存取麥克風";
+            }
+        }
+
+        setupRecording();
+
+        // 4. 按鈕互動邏輯 (點擊切換)
+        const toggleRecording = async () => {
+            console.log("recording toggled.")
+            if (!mediaRecorder) {
+                console.log("no media recorder. trying to setup")
+                await setupRecording();
+                if (!mediaRecorder) {
+                    alert("請允許麥克風權限以進行錄音。");
+                    return;
+                }
+            }
+
+            if (mediaRecorder.state === 'inactive') {
+                mediaRecorder.start();
+                recordBtn.textContent = "Recording...";
+                recordBtn.classList.add('recording');
+            } else if (mediaRecorder.state === 'recording') {
+                console.log("recording.")
+                mediaRecorder.stop();
+                recordBtn.textContent = "Answer";
+                recordBtn.classList.remove('recording');
+                recordBtn.disabled = true;
+            }
+        };
+
+        recordBtn.addEventListener('click', toggleRecording);
+
+        // 5. 結束會話功能
+        document.getElementById('end-btn').addEventListener('click', () => {
+            endSession();
+        });
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            if (sessionId) {
+                window.location.href = `/download_history/${sessionId}`;
+            }
+            endSession();
+        });
+
+        function endSession() {
+            sessionId = null;
+            currentTranscribingMessage = null;
+            if (ws) ws.close();
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                recordBtn.textContent = "Answer";
+                recordBtn.classList.remove('recording');
+            }
+
+            document.getElementById('chat-interface').classList.add('d-none');
+            document.getElementById('setup-container').classList.remove('d-none');
+            document.body.classList.remove('chat-mode');
+            document.body.classList.add('bg-light');
+            chatContainer.innerHTML = '';
+            statusDiv.textContent = "準備就緒";
+        }
+    </script>
+</body>
+
+</html>
