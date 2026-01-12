@@ -1,3 +1,9 @@
+# TODO:
+# 1. add logger,
+# 2. dockerized.
+# 3. Add interviewers' personality.
+
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -27,7 +33,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PORT = int(os.getenv("PORT"))
 
 STT_FILENAME = "speech.webm"
-client = OpenAI()
+# client = OpenAI()
 
 app = FastAPI()
 
@@ -80,6 +86,7 @@ async def setup_interview(
     position: str = Form("Machine Learning Engineer"),
     years_of_experience: float = Form(...),
     interview_type: str = Form(...),
+    interviewer_personality: str = Form("friendly"),
     openai_api_key: Optional[str] = Form(OPENAI_API_KEY),
     cv: UploadFile = File(None),
     enable_voice: bool = Form(True),
@@ -108,6 +115,7 @@ async def setup_interview(
         "position": position,
         "years_of_experience": years_of_experience,
         "interview_type": interview_type,
+        "interviewer_personality": interviewer_personality,
         "openai_api_key": openai_api_key,
         "cv_path": cv_filename,
         "cv_str": cv_str,
