@@ -4,7 +4,7 @@
 # 3. Add interviewers' personality.
 
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Form, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Form, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -22,6 +22,9 @@ import fitz
 from openai import OpenAI
 from interviewer import Interviewer
 from tutor import Tutor
+from utils import check_openai_api_key, check_job_title_valid
+from logger import configure_logging, get_logging_config
+import logging
 
 import tempfile
 import shutil
@@ -35,6 +38,8 @@ PORT = int(os.getenv("PORT"))
 STT_FILENAME = "speech.webm"
 # client = OpenAI()
 
+configure_logging()
+logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # 設定 CORS，允許前端 (通常是 localhost) 存取
@@ -92,6 +97,12 @@ async def setup_interview(
     enable_voice: bool = Form(True),
     # enable_advice: bool = Form(True),
 ):
+    if not check_openai_api_key(openai_api_key):
+        raise HTTPException(status_code=400, detail="Invalid OpenAI API Key.")
+
+    if not check_job_title_valid(openai_api_key, position):
+        raise HTTPException(status_code=400, detail=f"Invalid job title: {position}")
+
     session_id = str(uuid.uuid4())
 
     cv_filename = None
@@ -103,7 +114,7 @@ async def setup_interview(
                 for page in doc:
                     cv_str += page.get_text()
         except Exception as e:
-            print(f"Error parsing CV: {e}")
+            logger.error(f"Error parsing CV: {e}")
 
         os.makedirs("uploads", exist_ok=True)
         cv_filename = f"uploads/{session_id}_{cv.filename}"
@@ -122,11 +133,10 @@ async def setup_interview(
         "enable_voice": enable_voice,
         # "enable_advice": enable_advice,
     }
-    print(f"Session: {sessions}")
-    print(f"config: {sessions[session_id]}")
-    print("-" * 20)
-    print("cv_str: ", cv_str)
-
+    logger.info(f"Session created: {session_id}")
+    logger.debug(f"config: {sessions[session_id]}")
+    logger.debug("-" * 20)
+    logger.debug(f"cv_str: {cv_str[:100]}...")  # Log only first 100 chars
     # raise ValueError()
     return {"session_id": session_id}
 
@@ -134,14 +144,14 @@ async def setup_interview(
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
     await websocket.accept()
-    print("Client connected")
+    logger.info(f"Client connected: {session_id}")
 
     config = sessions.get(session_id)
     if not config:
         await websocket.send_text("Error: Invalid Session")
         await websocket.close()
         return
-    print(config)
+    logger.info(f"Loaded config for session: {session_id}")
 
     # initialize LLM clients
     client = OpenAI(api_key=config["openai_api_key"])
@@ -163,8 +173,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
 
             if message.get("type") == "audio":
                 data = base64.b64decode(message.get("data"))
-                print(f"收到音訊資料，大小: {len(data)} bytes")
-                print(type(data))
+                logger.info(f"Received audio data, size: {len(data)} bytes")
+                # logger.debug(type(data))
                 # 儲存音訊檔案
                 os.makedirs("inputs", exist_ok=True)
                 filename = f"inputs/{int(time.time())}-{n}.webm"
@@ -173,7 +183,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
                 n += 1
                 input_text = speech_to_text(client, data)
                 await websocket.send_json({"type": "user", "content": input_text, "index": current_index})
-                print(f"User said: {input_text}")
+                logger.info(f"User said: {input_text}")
 
                 # COMMING QUESTIONS:
                 response = interviewer.chat(input_text, session_id=session_id)
@@ -207,11 +217,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
 
             else:
 
-                print("Got websocket message:")
-                print(message)
+                logger.warning("Got unknown websocket message:")
+                logger.warning(message)
 
     except WebSocketDisconnect:
-        print("Client disconnected")
+        logger.info("Client disconnected")
 
 
 def speech_to_text(client: OpenAI, input_bytes: bytes) -> str:
@@ -230,4 +240,4 @@ async def sending_audio_messages(websocket: WebSocket, client: OpenAI, text: str
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    uvicorn.run(app, host="0.0.0.0", port=PORT, log_config=get_logging_config())

@@ -3,32 +3,38 @@ from typing import Any, Union, Literal
 from langchain.agents import AgentState, create_agent
 from langchain.agents.middleware import before_model
 from langchain.messages import RemoveMessage
-from langchain_core.chat_history import InMemoryChatMessageHistory
-from langchain_core.messages import trim_messages
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnableConfig
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 from langgraph.runtime import Runtime
-from langgraph.store.memory import InMemoryStore
-from langgraph.types import StateSnapshot
 from pydantic import BaseModel
 import os
 import dotenv
 
 dotenv.load_dotenv(override=False)
 
-# model = ChatOpenAI(name="gpt-5-nano-2025-08-07")
-# INTERVIEWER_MODEL_NAME = "gpt-5-nano-2025-08-07"
 INTERVIEWER_MODEL_NAME = os.getenv("INTERVIEWER_MODEL_NAME")
+
+BEHAVIORAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT = """
+You are an interviewer responsible for conducting a behavioral interview with a candidate. Follow these rules:
+
+* You are an interviewer, so chat like a real human, reply in conversation form, not articles. Don't add any prefix or title.
+* {interviewer_personality_prompt}
+* This is a behavioral interview. Focus on questions about the candidate’s past experiences, communication style, teamwork, problem-solving, leadership, and how they handle challenges or conflict.
+* If the interviewee’s resume is available, ask questions based on their previous roles, responsibilities, and workplace situations.
+* If the interviewee’s years of experience are available, adjust the depth and complexity of the questions to match their experience level.
+* Encourage the interviewee to answer using real examples (for example, using STAR: Situation, Task, Action, Result), but do not explicitly mention the framework unless needed.
+* You may ask follow-up questions based on the interviewee’s answers, but do not ask more than 5 questions on a single topic.
+* You may briefly summarize the interviewee’s answers, but you must always ask exactly one question at a time during the conversation.
+* You may also ask common behavioral interview questions (for example, “Tell me about a time you handled a difficult teammate.”).
+
+"""
 
 TECHNICAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT = """
 You are an interviewer responsible for conducting a technical interview with a candidate. Follow these rules:
 
-* You are an interviewer, so chat like a real human, and replay conversation, not articles.
+* You are an interviewer, so chat like a real human, reply in conversation form, not articles. Don't add any prefix or title.
+* {interviewer_personality_prompt}
 * This is a technical interview. Focus on technical questions relevant to the job title and the interviewee’s background.
 * If the interviewee’s resume is available, ask questions based on their previous work experience or projects.
 * If the interviewee’s years of experience are available, tailor the difficulty and depth of the questions to match their experience level.
@@ -47,6 +53,11 @@ USER_PROFILE_SYSTEM_PROMPT = """
 {cv}
 ```
 """
+INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY = {
+    "strict": "You are a strict interviewer who challenges the interviewee’s answers to probe their depth of understanding and frequently asks difficult, in-depth questions.",
+    "friendly": "You are a friendly interviewer who is supportive and encouraging toward the interviewee.",
+}
+
 
 N_HUMAN_MESSAGES_TO_KEEP = 5
 
@@ -69,39 +80,27 @@ def interviewer_system_prompt_factory(
     position: str,
     years_of_experience: float,
     cv: str,
+    interviewer_personality: str,
 ) -> str:
+    interviewer_personality_prompt = []
+    if interviewer_personality not in INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY:
+        raise ValueError(f"Invalid interviewer personality: {interviewer_personality}")
+    interviewer_personality_prompt = INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY[interviewer_personality].strip()
+
+    user_profile = USER_PROFILE_SYSTEM_PROMPT.format(
+        name=name,
+        position=position,
+        yoe=years_of_experience,
+        cv=cv.strip(),
+        interviewer_personality_prompt=interviewer_personality_prompt,
+    )
+
     if interview_type == "Technical":
-        user_profile = USER_PROFILE_SYSTEM_PROMPT.format(
-            name=name, position=position, yoe=years_of_experience, cv=cv.strip()
-        )
         return TECHNICAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT + user_profile
+    elif interview_type == "Behavioral":
+        return BEHAVIORAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT + user_profile
     else:
-        raise NotImplementedError()
-
-
-@before_model
-def trim_messages(state: InterviewerAgentState, runtime: Runtime) -> dict[str, Any] | None:
-    """Keep only the last few messages to fit context window."""
-    messages = state["messages"]
-
-    # if len(messages) <= 3:
-    #     return None  # No changes needed
-
-    # first_msg = messages[0]
-    # recent_messages = messages[-3:] if len(messages) % 2 == 0 else messages[-4:]
-    # new_messages = [first_msg] + recent_messages
-
-    # return {
-    #     "messages": [
-    #         RemoveMessage(id=REMOVE_ALL_MESSAGES),
-    #         *new_messages
-    #     ]
-    # }
-    print(type(state))
-    print(state["messages"])
-    print(state.keys())
-    print("----")
-    return
+        raise ValueError(f"Invalid interview type: {interview_type}")
 
 
 @before_model
@@ -121,18 +120,6 @@ def trim_human_messages(state: InterviewerAgentState, runtime: Runtime) -> dict[
     return {"messages": new_messages}
 
 
-{
-    "name": "Eric",
-    "position": "MLE",
-    "years_of_experience": 4.0,
-    "interview_type": "Technical",
-    "openai_api_key": "111",
-    "cv_path": "uploads/a120d158-6c60-4631-98e6-a1e0cf6b9a08_resume-20251211.pdf",
-    "enable_voice": False,
-    "enable_advice": True,
-}
-
-
 class Interviewer:
     def __init__(self, config: dict):
         self.message_historys = []
@@ -145,6 +132,7 @@ class Interviewer:
             position=config["position"],
             years_of_experience=config["years_of_experience"],
             cv=config["cv_str"],
+            interviewer_personality=config["interviewer_personality"],
         )
         print("system_prompt: ")
         print(self.system_prompt)

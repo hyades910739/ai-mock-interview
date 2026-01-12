@@ -425,7 +425,8 @@
                     </div>
 
                     <div class="d-grid gap-2 mt-4">
-                        <button type="submit" class="btn btn-success btn-lg">Start Interview</button>
+                        <button type="submit" id="start-interview-btn" class="btn btn-success btn-lg">Start
+                            Interview</button>
                     </div>
                 </form>
             </div>
@@ -434,7 +435,7 @@
 
     <!-- Chat Interface (Initially Hidden) -->
     <div id="chat-interface" class="d-none">
-        <h2 style="text-align: center; color: #333;" class="mt-4">Mock Interview</h2>
+        <h2 style="text-align: center; color: #333;" class="mt-4" id="chat-interface-title">Mock Interview</h2>
         <div id="interview-info" class="mb-3 text-secondary"></div>
         <div id="chat-container"></div>
         <div class="controls">
@@ -442,7 +443,7 @@
         </div>
         <div class="controls" style="margin-top: 10px;">
             <button id="end-btn" style="background-color: #6c757d; color: white;">Exit</button>
-            <button id="save-btn" style="background-color: #198754; color: white;">Exit and Save</button>
+            <button id="save-btn" style="background-color: #198754; color: white;">Save</button>
         </div>
         <div id="status">Ready to record</div>
     </div>
@@ -511,6 +512,11 @@
         document.getElementById('setup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const startBtn = document.getElementById('start-interview-btn');
+            const originalText = startBtn.innerHTML;
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+
             const formData = new FormData();
             formData.append('name', document.getElementById('userName').value);
             formData.append('position', document.getElementById('userPosition').value);
@@ -548,6 +554,9 @@
                         <div>Position: ${position}</div>
                     `;
 
+                    const interviewType = document.querySelector('input[name="interviewType"]:checked').value;
+                    document.getElementById('chat-interface-title').textContent = `Mock Interview - ${interviewType}`;
+
                     // 切換介面
                     document.getElementById('setup-container').classList.add('d-none');
                     document.getElementById('chat-interface').classList.remove('d-none');
@@ -555,15 +564,24 @@
                     document.body.classList.add('chat-mode');
                     recordBtn.disabled = true;
 
+                    // Reset button state for when user returns to setup
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = originalText;
+
                     // 初始化 WebSocket
                     connectWebSocket();
                     // appendMessage("你好，很高興認識你", "bot");
                 } else {
-                    alert('Setup failed. Please check your inputs.');
+                    const errorData = await response.json();
+                    alert(errorData.detail || 'Setup failed. Please check your inputs.');
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = originalText;
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('An error occurred during setup.');
+                startBtn.disabled = false;
+                startBtn.innerHTML = originalText;
             }
         });
 
@@ -892,7 +910,7 @@
 
         document.getElementById('save-btn').addEventListener('click', () => {
             window.print();
-            endSession();
+            // endSession();
         });
 
         function endSession() {

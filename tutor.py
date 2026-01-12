@@ -37,7 +37,7 @@ Your task is to rewrite the User Answer into a better response to the Question b
 - improving clarity and technical accuracy
 - making the answer more concise and natural
 
-Keep the original meaning unless it is wrong.
+Keep the original meaning unless it is wrong, and use conversational language, avoiding complex grammar or difficult words.
 
 Return only the improved answer.
 Do NOT include labels, explanations, or prefixes.
