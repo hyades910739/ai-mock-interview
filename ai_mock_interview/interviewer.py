@@ -1,5 +1,9 @@
-from typing import Any, Union, Literal
+import logging
+import os
+import time
+from typing import Any, Literal, Union
 
+import dotenv
 from langchain.agents import AgentState, create_agent
 from langchain.agents.middleware import before_model
 from langchain.messages import RemoveMessage
@@ -8,8 +12,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 from langgraph.runtime import Runtime
 from pydantic import BaseModel
-import os
-import dotenv
+
+logger = logging.getLogger(__name__)
 
 dotenv.load_dotenv(override=False)
 
@@ -82,7 +86,6 @@ def interviewer_system_prompt_factory(
     cv: str,
     interviewer_personality: str,
 ) -> str:
-    interviewer_personality_prompt = []
     if interviewer_personality not in INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY:
         raise ValueError(f"Invalid interviewer personality: {interviewer_personality}")
     interviewer_personality_prompt = INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY[interviewer_personality].strip()
@@ -92,13 +95,23 @@ def interviewer_system_prompt_factory(
         position=position,
         yoe=years_of_experience,
         cv=cv.strip(),
-        interviewer_personality_prompt=interviewer_personality_prompt,
+        # interviewer_personality_prompt=interviewer_personality_prompt,
     )
 
     if interview_type == "Technical":
-        return TECHNICAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT + user_profile
+        return (
+            TECHNICAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT.format(
+                interviewer_personality_prompt=interviewer_personality_prompt
+            )
+            + user_profile
+        )
     elif interview_type == "Behavioral":
-        return BEHAVIORAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT + user_profile
+        return (
+            BEHAVIORAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT.format(
+                interviewer_personality_prompt=interviewer_personality_prompt
+            )
+            + user_profile
+        )
     else:
         raise ValueError(f"Invalid interview type: {interview_type}")
 
@@ -134,8 +147,6 @@ class Interviewer:
             cv=config["cv_str"],
             interviewer_personality=config["interviewer_personality"],
         )
-        print("system_prompt: ")
-        print(self.system_prompt)
         model = ChatOpenAI(name=INTERVIEWER_MODEL_NAME, temperature=0.7, api_key=api_key)
         self.agent = create_agent(
             model,
@@ -144,14 +155,20 @@ class Interviewer:
             middleware=[trim_human_messages],
             system_prompt=self.system_prompt,
         )
+        logger.info("Successfully generate interviewer agent.")
+        logger.info(f"System prompt:\n {self.system_prompt}")
 
     def chat(self, user_input: str, session_id: str) -> InterviewerResponse:
+        logger.info("Calling Interviewer agent...")
+        start_time = time.time()
         response = self.agent.invoke(
             {
                 "messages": [{"role": "user", "content": user_input}],
             },
             config={"configurable": {"thread_id": session_id}},
         )
+        end_time = time.time()
+        logger.info(f"Interviewer agent call took {end_time - start_time:.2f} seconds")
         current_index = len(self.message_historys) // 2 + 1
         # update history
         latest_conversation = response["messages"][-2:]

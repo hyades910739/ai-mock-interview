@@ -444,8 +444,16 @@
         <div class="controls" style="margin-top: 10px;">
             <button id="end-btn" style="background-color: #6c757d; color: white;">Exit</button>
             <button id="save-btn" style="background-color: #198754; color: white;">Save</button>
+            <button id="diagnosis-btn" style="background-color: #0d6efd; color: white;">Diagnosis</button>
         </div>
         <div id="status">Ready to record</div>
+    </div>
+    <!-- Diagnosis Interface (Initially Hidden) -->
+    <div id="diagnosis-interface" class="d-none">
+        <h2 style="text-align: center; color: #333;" class="mt-4">Interview Diagnosis</h2>
+        <div id="diagnosis-content" class="card card-body"
+            style="max-width: 800px; margin: 1rem auto; background-color: #fff; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        </div>
     </div>
     <!-- Jquery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -913,6 +921,54 @@
             // endSession();
         });
 
+        document.getElementById('diagnosis-btn').addEventListener('click', async () => {
+            const diagnosisBtn = document.getElementById('diagnosis-btn');
+            diagnosisBtn.disabled = true;
+            diagnosisBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Diagnosing...';
+
+            try {
+                const response = await fetch('/diagnosis', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('chat-interface').classList.add('d-none');
+                    document.getElementById('status').classList.add('d-none');
+                    document.getElementById('diagnosis-interface').classList.remove('d-none');
+
+                    const diagnosisContent = document.getElementById('diagnosis-content');
+                    diagnosisContent.innerHTML = `
+                        <h5>Score: ${data.score}</h5>
+                        <p><strong>The chances of getting this job:</strong> ${(data['the_chances_of_getting_this_job'] * 100).toFixed(1)}%</p>
+                        <p><strong>Comments:</strong><br> ${data.comments}</p>
+                        <p><strong>What to improve:</strong><br> ${data['what_to_improve']}</p>
+                        <div class="text-center mt-4">
+                            <button id="new-interview-btn" class="btn btn-primary">Start a New Interview</button>
+                        </div>
+                    `;
+                    document.getElementById('new-interview-btn').addEventListener('click', endSession);
+                    if (ws) {
+                        ws.close();
+                    }
+
+                } else {
+                    alert('Failed to get diagnosis.');
+                    diagnosisBtn.disabled = false;
+                    diagnosisBtn.innerHTML = 'Diagnosis';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while getting the diagnosis.');
+                diagnosisBtn.disabled = false;
+                diagnosisBtn.innerHTML = 'Diagnosis';
+            }
+        });
+
         function endSession() {
             sessionId = null;
             currentTranscribingMessage = null;
@@ -924,11 +980,13 @@
             }
 
             document.getElementById('chat-interface').classList.add('d-none');
+            document.getElementById('diagnosis-interface').classList.add('d-none');
             document.getElementById('setup-container').classList.remove('d-none');
             document.body.classList.remove('chat-mode');
             document.body.classList.add('bg-light');
             chatContainer.innerHTML = '';
             statusDiv.textContent = "Ready to record";
+            statusDiv.classList.remove('d-none');
         }
     </script>
 </body>

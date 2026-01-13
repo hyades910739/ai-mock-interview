@@ -1,6 +1,11 @@
-from langchain_openai import ChatOpenAI
+import logging
 import os
+import time
+
 import dotenv
+from langchain_openai import ChatOpenAI
+
+logger = logging.getLogger(__name__)
 
 dotenv.load_dotenv(override=False)
 TUTOR_MODEL_NAME = os.getenv("TUTOR_MODEL_NAME")
@@ -52,19 +57,26 @@ class Tutor:
     def __init__(self, api_key: str):
         self.model = ChatOpenAI(
             model=TUTOR_MODEL_NAME,
-            temperature=0.7,
+            # temperature=0.7,
             api_key=api_key,
         )
+        logger.debug("Tutor model initialized.")
 
     def improve_grammar(self, answer: str) -> str:
         messages = [("system", GRAMMAR_TUTOR_SYSTEM_PROMPT), ("human", answer)]
-        # print("messages: ")
-        # print(messages)
+        logger.info("Calling Grammar Tutor LLM...")
+        start_time = time.time()
         response = self.model.invoke(messages)
+        end_time = time.time()
+        logger.info(f"Grammar Tutor LLM call took {end_time - start_time:.2f} seconds")
         return response.content
 
     def improve_answer(self, question: str, answer: str) -> str:
         input_ = f"Question: {question}\nAnswer: {answer}"
         messages = [("system", ANSWER_TUTOR_SYSTEM_PROMPT), ("human", input_)]
+        logger.info("Calling Answer Tutor LLM...")
+        start_time = time.time()
         response = self.model.invoke(messages)
+        end_time = time.time()
+        logger.info(f"Answer Tutor LLM call took {end_time - start_time:.2f} seconds")
         return response.content

@@ -1,42 +1,44 @@
-# TODO:
-# 1. add logger,
-# 2. dockerized.
-# 3. Add interviewers' personality.
-
-
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Form, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+import base64
+import logging
+import os
+import tempfile
+import time
+import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
-import uvicorn
-import os
-import time
-import os
-from io import BytesIO
-import uuid
-import base64
+
 import fitz
-
-from openai import OpenAI
-from interviewer import Interviewer
-from tutor import Tutor
-from utils import check_openai_api_key, check_job_title_valid
-from logger import configure_logging, get_logging_config
-import logging
-
-import tempfile
-import shutil
-from pathlib import Path
+import uvicorn
 from dotenv import load_dotenv
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from openai import OpenAI
+
+from ai_mock_interview.interviewer import Interviewer
+from ai_mock_interview.logger import configure_logging, get_logging_config
+from ai_mock_interview.reviewer import review
+from ai_mock_interview.tutor import Tutor
+from ai_mock_interview.utils import check_job_title_valid, check_openai_api_key
 
 load_dotenv(override=False)
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PORT = int(os.getenv("PORT"))
-
 STT_FILENAME = "speech.webm"
 # client = OpenAI()
+
+SESSION_CONSTANTS = dict()
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -52,7 +54,7 @@ app.add_middleware(
 )
 
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 
 # 1. 掛載靜態檔案 (CSS, JS, Images 等)
@@ -133,12 +135,39 @@ async def setup_interview(
         "enable_voice": enable_voice,
         # "enable_advice": enable_advice,
     }
+
     logger.info(f"Session created: {session_id}")
     logger.debug(f"config: {sessions[session_id]}")
     logger.debug("-" * 20)
     logger.debug(f"cv_str: {cv_str[:100]}...")  # Log only first 100 chars
     # raise ValueError()
     return {"session_id": session_id}
+
+
+@app.post("/diagnosis")
+async def diagnosis(data: dict):
+    session_id = data.get("session_id")
+    logger.info(f"Diagnosis request for session_id: {session_id}")
+    assert session_id in sessions, f"Invalid session_id: {session_id}."
+
+    interviewer = interviewer_agents[session_id]
+
+    review_result = review(
+        api_key=sessions[session_id]["openai_api_key"],
+        histories=interviewer.message_historys,
+        position=sessions[session_id]["position"],
+        years_of_experience=sessions[session_id]["years_of_experience"],
+        cv=sessions[session_id]["cv_str"],
+    )
+    logger.info(f"Successfully get the review result: {review_result.model_dump()}")
+    review_result_dict = review_result.model_dump()
+    # replace key:
+    # review_result_dict["the-chances-of-getting-this-job"] = review_result_dict.pop("the_chances_of_getting_this_job")
+    # review_result_dict["the-chances-of-getting-this-job"] = review_result_dict.pop("what_to_improve")
+
+    # In the future, you can use the session_id to retrieve the interview data
+    # and generate a real diagnosis.
+    return review_result_dict
 
 
 @app.websocket("/ws")
