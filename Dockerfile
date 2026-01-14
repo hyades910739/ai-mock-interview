@@ -22,11 +22,11 @@ EXPOSE 8000
 
 # Define environment variables.
 # The OPENAI_API_KEY must be provided at runtime.
-ENV PORT=8000
+# ENV PORT=8000
 ENV INTERVIEWER_MODEL_NAME="gpt-5-nano-2025-08-07"
 ENV TUTOR_MODEL_NAME="gpt-5-nano-2025-08-07"
 
 # ENV OPENAI_API_KEY=""
 
 # Run uvicorn server
-CMD ["uvicorn", "ai_mock_interview.main:app", "--host", "0.0.0.0", "--port", PORT]
+CMD ["uvicorn", "ai_mock_interview.main:app", "--host", "0.0.0.0", "--port", "8000"]

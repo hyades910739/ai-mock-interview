@@ -1,3 +1,6 @@
+# TODO: websocket might broke due to time out?
+# TODO: get the websocket back in chat interface if it broke.
+
 import base64
 import logging
 import os
@@ -34,7 +37,6 @@ from ai_mock_interview.utils import check_job_title_valid, check_openai_api_key
 load_dotenv(override=False)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-PORT = int(os.getenv("PORT"))
 STT_FILENAME = "speech.webm"
 # client = OpenAI()
 
@@ -208,9 +210,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
             if message.get("type") == "audio":
                 data = base64.b64decode(message.get("data"))
                 logger.info(f"Received audio data, size: {len(data)} bytes")
+                # logger.debug(type(data))
                 # 儲存音訊檔案
                 os.makedirs("inputs", exist_ok=True)
-                filename = f"inputs/{session_id}-{current_index}.webm"
+                filename = f"inputs/{int(time.time())}-{n}.webm"
                 with open(filename, "wb") as f:
                     f.write(data)
                 n += 1
@@ -275,4 +278,5 @@ async def sending_audio_messages(websocket: WebSocket, client: AsyncOpenAI, text
 
 
 if __name__ == "__main__":
+    PORT = int(os.getenv("PORT"))
     uvicorn.run(app, host="0.0.0.0", port=PORT, log_config=get_logging_config())
