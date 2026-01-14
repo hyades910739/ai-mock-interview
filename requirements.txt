@@ -8,3 +8,5 @@ PyMuPDF==1.26.7
 tiktoken
 tqdm
 websockets
+uvicorn
+python-multipart

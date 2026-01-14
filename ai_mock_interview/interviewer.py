@@ -178,6 +178,26 @@ class Interviewer:
         text_content = response["messages"][-1].content
         return InterviewerResponse(index=current_index, content=text_content)
 
+    async def achat(self, user_input: str, session_id: str) -> InterviewerResponse:
+        logger.info("Calling Interviewer agent...")
+        start_time = time.time()
+        response = await self.agent.ainvoke(
+            {
+                "messages": [{"role": "user", "content": user_input}],
+            },
+            config={"configurable": {"thread_id": session_id}},
+        )
+        end_time = time.time()
+        logger.info(f"Interviewer agent call took {end_time - start_time:.2f} seconds")
+        current_index = len(self.message_historys) // 2 + 1
+        # update history
+        latest_conversation = response["messages"][-2:]
+        for message in latest_conversation:
+            self.message_historys.append(message)
+        # self.save_history(session_id)
+        text_content = response["messages"][-1].content
+        return InterviewerResponse(index=current_index, content=text_content)
+
     def save_history(self, session_id: str):
         with open(f"history_{session_id}.txt", "w") as f:
             for m in self.message_historys:

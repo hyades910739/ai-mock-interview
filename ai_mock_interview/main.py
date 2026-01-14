@@ -1,3 +1,6 @@
+# TODO: websocket might broke due to time out?
+# TODO: get the websocket back in chat interface if it broke.
+
 import base64
 import logging
 import os
@@ -23,7 +26,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from ai_mock_interview.interviewer import Interviewer
 from ai_mock_interview.logger import configure_logging, get_logging_config
@@ -183,13 +186,13 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
     logger.info(f"Loaded config for session: {session_id}")
 
     # initialize LLM clients
-    client = OpenAI(api_key=config["openai_api_key"])
+    client = AsyncOpenAI(api_key=config["openai_api_key"])
 
     interviewer = Interviewer(config)
     tutor = Tutor(config["openai_api_key"])
     interviewer_agents[session_id] = interviewer
     # init the chatbot.
-    response = interviewer.chat("### Start the Interview ###", session_id=session_id)
+    response = await interviewer.achat("### Start the Interview ###", session_id=session_id)
     current_index = response.index
     await websocket.send_json({"type": "interviewer", "content": response.content, "index": current_index})
     if config.get("enable_voice"):
@@ -199,6 +202,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
         while True:
             # 接收前端傳來的 JSON 資料
             message = await websocket.receive_json()
+
+            if message.get("type") == "ping":
+                logger.info("get ping")
+                await websocket.send_text("pong")
+                continue
 
             if message.get("type") == "audio":
                 data = base64.b64decode(message.get("data"))
@@ -210,12 +218,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
                 with open(filename, "wb") as f:
                     f.write(data)
                 n += 1
-                input_text = speech_to_text(client, data)
+                input_text = await speech_to_text(client, data)
                 await websocket.send_json({"type": "user", "content": input_text, "index": current_index})
                 logger.info(f"User said: {input_text}")
 
                 # COMMING QUESTIONS:
-                response = interviewer.chat(input_text, session_id=session_id)
+                response = await interviewer.achat(input_text, session_id=session_id)
                 current_index = response.index
                 await websocket.send_json({"type": "interviewer", "content": response.content, "index": current_index})
 
@@ -227,7 +235,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
                 assert "user" in data
                 user_message = data["user"]
                 index = data["index"]
-                response = tutor.improve_grammar(answer=user_message)
+                response = await tutor.aimprove_grammar(answer=user_message)
                 await websocket.send_json({"type": "grammar_check", "content": response, "index": index})
 
             elif message.get("type") == "generate_ai_answer":
@@ -237,7 +245,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
                 user_message = data["user"]
                 interviewer_message = data["interviewer"]
                 index = data["index"]
-                response = tutor.improve_answer(question=interviewer_message, answer=user_message)
+                response = await tutor.aimprove_answer(question=interviewer_message, answer=user_message)
                 await websocket.send_json({"type": "generate_ai_answer", "content": response, "index": index})
 
                 # print(type(data))
@@ -253,18 +261,20 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str = None):
         logger.info("Client disconnected")
 
 
-def speech_to_text(client: OpenAI, input_bytes: bytes) -> str:
+async def speech_to_text(client: AsyncOpenAI, input_bytes: bytes) -> str:
     input_file = BytesIO(input_bytes)
     input_file.name = STT_FILENAME
-    transcription = client.audio.transcriptions.create(model="gpt-4o-transcribe", file=input_file)
+    transcription = await client.audio.transcriptions.create(model="whisper-1", file=input_file)
     return transcription.text
 
 
-async def sending_audio_messages(websocket: WebSocket, client: OpenAI, text: str):
+async def sending_audio_messages(websocket: WebSocket, client: AsyncOpenAI, text: str):
     await websocket.send_text("START_AUDIO")
-    tts_response = client.audio.speech.create(model="tts-1", voice="alloy", input=text, response_format="mp3")
-    for chunk in tts_response.iter_bytes(chunk_size=4096):
-        await websocket.send_bytes(chunk)
+    async with client.audio.speech.with_streaming_response.create(
+        model="tts-1", voice="alloy", input=text, response_format="mp3"
+    ) as response:
+        async for chunk in response.iter_bytes(chunk_size=4096):
+            await websocket.send_bytes(chunk)
     await websocket.send_text("END_AUDIO")
 
 

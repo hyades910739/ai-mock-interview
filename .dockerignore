@@ -1,0 +1,23 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Other
+.DS_Store
+logs/
+uploads/
+inputs/

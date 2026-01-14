@@ -71,12 +71,31 @@ class Tutor:
         logger.info(f"Grammar Tutor LLM call took {end_time - start_time:.2f} seconds")
         return response.content
 
+    async def aimprove_grammar(self, answer: str) -> str:
+        messages = [("system", GRAMMAR_TUTOR_SYSTEM_PROMPT), ("human", answer)]
+        logger.info("Calling Grammar Tutor LLM...")
+        start_time = time.time()
+        response = await self.model.ainvoke(messages)
+        end_time = time.time()
+        logger.info(f"Grammar Tutor LLM call took {end_time - start_time:.2f} seconds")
+        return response.content
+
     def improve_answer(self, question: str, answer: str) -> str:
         input_ = f"Question: {question}\nAnswer: {answer}"
         messages = [("system", ANSWER_TUTOR_SYSTEM_PROMPT), ("human", input_)]
         logger.info("Calling Answer Tutor LLM...")
         start_time = time.time()
         response = self.model.invoke(messages)
+        end_time = time.time()
+        logger.info(f"Answer Tutor LLM call took {end_time - start_time:.2f} seconds")
+        return response.content
+
+    async def aimprove_answer(self, question: str, answer: str) -> str:
+        input_ = f"Question: {question}\nAnswer: {answer}"
+        messages = [("system", ANSWER_TUTOR_SYSTEM_PROMPT), ("human", input_)]
+        logger.info("Calling Answer Tutor LLM...")
+        start_time = time.time()
+        response = await self.model.ainvoke(messages)
         end_time = time.time()
         logger.info(f"Answer Tutor LLM call took {end_time - start_time:.2f} seconds")
         return response.content

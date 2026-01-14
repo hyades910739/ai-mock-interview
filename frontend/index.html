@@ -439,12 +439,12 @@
         <div id="interview-info" class="mb-3 text-secondary"></div>
         <div id="chat-container"></div>
         <div class="controls">
-            <button id="record-btn">Answer</button>
+            <button id="record-btn">Record Answer</button>
         </div>
         <div class="controls" style="margin-top: 10px;">
             <button id="end-btn" style="background-color: #6c757d; color: white;">Exit</button>
             <button id="save-btn" style="background-color: #198754; color: white;">Save</button>
-            <button id="diagnosis-btn" style="background-color: #0d6efd; color: white;">Diagnosis</button>
+            <button id="diagnosis-btn" style="background-color: #0d6efd; color: white;">Diagnosis and Exit</button>
         </div>
         <div id="status">Ready to record</div>
     </div>
@@ -476,6 +476,7 @@
         let mediaRecorder;
         let audioChunks = [];
         let currentTranscribingMessage = null;
+        let heartbeatInterval;
 
         $(function () {
             $('[data-toggle="tooltip"]').tooltip()
@@ -602,15 +603,28 @@
             ws.onopen = () => {
                 console.log('Connected to WebSocket');
                 statusDiv.textContent = "伺服器已連線";
+                // Start sending heartbeats
+                heartbeatInterval = setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        console.log("Sending ping");
+                        ws.send(JSON.stringify({ type: 'ping' }));
+                    }
+                }, 30000); // Send a ping every 30 seconds
             };
 
             ws.onclose = () => {
                 console.log('Disconnected');
                 statusDiv.textContent = "伺服器連線中斷";
+                // Stop sending heartbeats
+                clearInterval(heartbeatInterval);
             };
 
             ws.onmessage = (event) => {
                 if (typeof event.data === 'string') {
+                    if (event.data === 'pong') {
+                        console.log('pong');
+                        return;
+                    }
                     handleTextMessage(event.data);
                 } else {
                     handleBinaryMessage(event.data);
@@ -903,7 +917,7 @@
             } else if (mediaRecorder.state === 'recording') {
                 console.log("recording.")
                 mediaRecorder.stop();
-                recordBtn.textContent = "Answer";
+                recordBtn.textContent = "Record Answer";
                 recordBtn.classList.remove('recording');
                 recordBtn.disabled = true;
             }
@@ -975,7 +989,7 @@
             if (ws) ws.close();
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
-                recordBtn.textContent = "Answer";
+                recordBtn.textContent = "Record Answer";
                 recordBtn.classList.remove('recording');
             }
 
