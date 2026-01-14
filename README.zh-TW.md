@@ -11,7 +11,7 @@ Use AI to do mock interviews while AI is taking away our jobs 👊😡.
 * 在面試過程中獲得文法修正或 AI 建議的回答。
 * 取得由 LLM 產生的面試評估與診斷。
 
-<img src="imgs/interview.png" width="400">
+<img src="imgs/interview.png" width="600">
 
 ## 需求
 * 💰 OpenAI API Key：比你想像中便宜。
@@ -23,13 +23,13 @@ Use AI to do mock interviews while AI is taking away our jobs 👊😡.
 
 #### 直接 pull image
 ```
-docker pull <SKIP>
+docker pull ghcr.io/hyades910739/ai-mock-interview:latest
 ```
 
 #### 自己 build:
 先 clone 這個 repo。
 ```
-git clone <>
+git clone https://github.com/hyades910739/ai-mock-interview.git
 ```
 
 build Docker image

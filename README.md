@@ -14,7 +14,7 @@ Use AI to do mock interviews while AI is taking away our jobs 👊😡.
 * Receive an interview diagnosis from the LLM.
 
 
-<img src="imgs/interview.png" width="400">
+<img src="imgs/interview.png" width="600">
 
 
 ## Prerequisites
@@ -27,12 +27,12 @@ You can either pull the image direcly, or build from scratch.
 
 #### Pull directly:
 ```
-docker pull <SKIP>
+docker pull ghcr.io/hyades910739/ai-mock-interview:latest
 ```
 #### Build from scratch:
 first, clone this repo.
 ```
-git clone <>
+git clone https://github.com/hyades910739/ai-mock-interview.git
 ```
 Then docker build
 ```

@@ -604,7 +604,7 @@
 
             ws.onopen = () => {
                 console.log('Connected to WebSocket');
-                statusDiv.textContent = "伺服器已連線";
+                statusDiv.textContent = "Connected to WebSocket";
                 // Start sending heartbeats
                 heartbeatInterval = setInterval(() => {
                     if (ws.readyState === WebSocket.OPEN) {
@@ -616,7 +616,7 @@
 
             ws.onclose = () => {
                 console.log('Disconnected');
-                statusDiv.textContent = "伺服器連線中斷";
+                statusDiv.textContent = "Disconnected";
                 // Stop sending heartbeats
                 clearInterval(heartbeatInterval);
             };
