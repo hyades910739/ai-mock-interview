@@ -29,4 +29,4 @@ ENV TUTOR_MODEL_NAME="gpt-5-nano-2025-08-07"
 # ENV OPENAI_API_KEY=""
 
 # Run uvicorn server
-CMD ["uvicorn", "ai_mock_interview.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "ai_mock_interview.main:app", "--host", "0.0.0.0", "--port", PORT]

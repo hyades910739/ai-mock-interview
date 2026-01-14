@@ -19,6 +19,9 @@ Given a user’s answer, rewrite it to:
 - keep the original meaning and tone
 
 Only modify what is necessary.  
+
+Make sure your responses sound like natural spoken conversation, not like a written article. Use simple, casual language.
+
 Wrap every changed or added word or phrase in:
 <span class="correct"></span>
 
@@ -43,6 +46,8 @@ Your task is to rewrite the User Answer into a better response to the Question b
 - making the answer more concise and natural
 
 Keep the original meaning unless it is wrong, and use conversational language, avoiding complex grammar or difficult words.
+
+Make sure your responses sound like natural spoken conversation, not like a written article. Use simple, casual language.
 
 Return only the improved answer.
 Do NOT include labels, explanations, or prefixes.

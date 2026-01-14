@@ -442,9 +442,9 @@
             <button id="record-btn">Record Answer</button>
         </div>
         <div class="controls" style="margin-top: 10px;">
-            <button id="end-btn" style="background-color: #6c757d; color: white;">Exit</button>
-            <button id="save-btn" style="background-color: #198754; color: white;">Save</button>
-            <button id="diagnosis-btn" style="background-color: #0d6efd; color: white;">Diagnosis and Exit</button>
+            <button id="end-btn" style="background-color: #546a7d; color: white;">Exit</button>
+            <button id="save-btn" style="background-color: #1c6c46; color: white;">Save</button>
+            <button id="diagnosis-btn" style="background-color: #1c6c46; color: white;">Diagnosis and Exit</button>
         </div>
         <div id="status">Ready to record</div>
     </div>
@@ -572,6 +572,8 @@
                     document.body.classList.remove('bg-light');
                     document.body.classList.add('chat-mode');
                     recordBtn.disabled = true;
+                    document.getElementById('save-btn').disabled = true;
+                    document.getElementById('diagnosis-btn').disabled = true;
 
                     // Reset button state for when user returns to setup
                     startBtn.disabled = false;
@@ -775,6 +777,10 @@
                 } else if (data.type === "interviewer") {
                     appendMessage(data.content, "bot", data.index);
                     recordBtn.disabled = false;
+                    if (data.index >= 2) {
+                        document.getElementById('save-btn').disabled = false;
+                        document.getElementById('diagnosis-btn').disabled = false;
+                    }
                 } else if (data.type === "grammar_check" || data.type === "generate_ai_answer") {
                     const loadingMsg = document.querySelector(`.message.ai-suggestion[data-related-index="${data.index}"][data-type="${data.type}"]`);
                     if (loadingMsg) {
@@ -958,7 +964,7 @@
                     const diagnosisContent = document.getElementById('diagnosis-content');
                     diagnosisContent.innerHTML = `
                         <h5>Score: ${data.score}</h5>
-                        <p><strong>The chances of getting this job:</strong> ${(data['the_chances_of_getting_this_job'] * 100).toFixed(1)}%</p>
+                        <p><strong>The chances of getting this job:</strong> ${(data['the_chances_of_getting_this_job']).toFixed(1)}%</p>
                         <p><strong>Comments:</strong><br> ${data.comments}</p>
                         <p><strong>What to improve:</strong><br> ${data['what_to_improve']}</p>
                         <div class="text-center mt-4">
