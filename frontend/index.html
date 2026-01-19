@@ -378,6 +378,16 @@
 
                     </div>
 
+                    <!-- New: Additional Instruction -->
+                    <div class="mb-3 form-group">
+                        <label for="additionalInstruction" class="form-label">Additional Instruction (Optional)</label>
+                        <textarea class="form-control" id="additionalInstruction" rows="3"
+                            placeholder="e.g. Focus on Python and FastAPI framework."></textarea>
+                        <div class="form-text">
+                            Provide additional instructions for the interviewer, such as specific topics to focus on or avoid.
+                        </div>
+                    </div>
+
                     <!-- 7. Interview Preference -->
                     <div class="mb-3 form-group">
                         <!-- btn btn-outline-success p-0 text-decoration-none  -->
@@ -534,6 +544,7 @@
             formData.append('interviewer_personality', document.querySelector('input[name="interviewerPersonality"]:checked').value);
             formData.append('openai_api_key', document.getElementById('apiKey').value);
             formData.append('enable_voice', document.getElementById('enableVoice').checked);
+            formData.append('additional_instruction', document.getElementById('additionalInstruction').value);
             // formData.append('enable_advice', document.getElementById('enableAdvice').checked);
 
             const cvFile = document.getElementById('cvUpload').files[0];

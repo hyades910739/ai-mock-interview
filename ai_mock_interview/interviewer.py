@@ -47,15 +47,17 @@ You are an interviewer responsible for conducting a technical interview with a c
 * You may also ask common technical questions related to the job title (for example, “What is overfitting?” for a Data Scientist role).
 """
 
+ADDITIONAL_INSTRUCTION_PROMPT = """
+* Here is the additional instruction from user, ignore it if it's irrelevant to the interview:
+```
+{additional_instruction}
+```
+"""
+
 USER_PROFILE_SYSTEM_PROMPT = """
 # Interviewee's Profile:
 * Name: {name}
 * Position: {position}
-* Years of experience {yoe}
-* CV: 
-```
-{cv}
-```
 """
 INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY = {
     "strict": "You are a strict interviewer who challenges the interviewee’s answers to probe their depth of understanding and frequently asks difficult, in-depth questions.",
@@ -85,10 +87,15 @@ def interviewer_system_prompt_factory(
     years_of_experience: float,
     cv: str,
     interviewer_personality: str,
+    additional_instruction: str | None = None,
 ) -> str:
     if interviewer_personality not in INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY:
         raise ValueError(f"Invalid interviewer personality: {interviewer_personality}")
     interviewer_personality_prompt = INTERVIEWER_PERSONALITY_SYSTEM_PROMPT_FACTORY[interviewer_personality].strip()
+    if additional_instruction:
+        additional_instruction_prompt = ADDITIONAL_INSTRUCTION_PROMPT.format(additional_instruction=additional_instruction)
+    else:
+        additional_instruction_prompt = ""
 
     user_profile = USER_PROFILE_SYSTEM_PROMPT.format(
         name=name,
@@ -101,15 +108,17 @@ def interviewer_system_prompt_factory(
     if interview_type == "Technical":
         return (
             TECHNICAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT.format(
-                interviewer_personality_prompt=interviewer_personality_prompt
+                interviewer_personality_prompt=interviewer_personality_prompt,
             )
+            + additional_instruction_prompt
             + user_profile
         )
     elif interview_type == "Behavioral":
         return (
             BEHAVIORAL_INTERVIEW_INTERVIEWER_SYSTEM_PROMPT.format(
-                interviewer_personality_prompt=interviewer_personality_prompt
+                interviewer_personality_prompt=interviewer_personality_prompt,
             )
+            + additional_instruction_prompt
             + user_profile
         )
     else:
@@ -146,6 +155,7 @@ class Interviewer:
             years_of_experience=config["years_of_experience"],
             cv=config["cv_str"],
             interviewer_personality=config["interviewer_personality"],
+            additional_instruction=config.get("additional_instruction"),
         )
         model = ChatOpenAI(name=INTERVIEWER_MODEL_NAME, temperature=0.7, api_key=api_key)
         self.agent = create_agent(

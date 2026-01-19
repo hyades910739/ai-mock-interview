@@ -1,6 +1,3 @@
-# TODO: websocket might broke due to time out?
-# TODO: get the websocket back in chat interface if it broke.
-
 import base64
 import logging
 import os
@@ -99,6 +96,7 @@ async def setup_interview(
     openai_api_key: Optional[str] = Form(OPENAI_API_KEY),
     cv: UploadFile = File(None),
     enable_voice: bool = Form(True),
+    additional_instruction: Optional[str] = Form(None),
     # enable_advice: bool = Form(True),
 ):
     if not check_openai_api_key(openai_api_key):
@@ -135,9 +133,9 @@ async def setup_interview(
         "cv_path": cv_filename,
         "cv_str": cv_str,
         "enable_voice": enable_voice,
+        "additional_instruction": additional_instruction,
         # "enable_advice": enable_advice,
     }
-
     logger.info(f"Session created: {session_id}")
     logger.debug(f"config: {sessions[session_id]}")
     logger.debug("-" * 20)
